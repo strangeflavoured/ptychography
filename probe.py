@@ -54,23 +54,45 @@ class Probe:
 
 	#plot probe vs fit
 	def test(self):		
-		fig, (ax1,ax2,ax3)=plt.subplots(1,3,sharey=True,figsize=(18,5))
+		fig, ((ax1,ax2,ax3),(ax4,ax5,ax6),(ax7,ax8,ax9))=plt.subplots(3,3,sharey=True,figsize=(15,15))
 
 		#plot original probe
 		ax1=sns.heatmap(np.abs(self.probe),ax=ax1)
+		ax1.set_title("original probe (amplitude)")
+
+		ax4=sns.heatmap(self.probe.real,ax=ax4)
+		ax4.set_title("original probe (real)")
+
+		ax7=sns.heatmap(self.probe.imag,ax=ax7)
+		ax7.set_title("original probe (imag)")
 
 		#plot fitted zernike polynomial
 		fit=self.cart.eval_grid(self.coeffs, matrix=True)
 		fit=np.nan_to_num(fit, nan=0)
 
 		ax2=sns.heatmap(np.abs(fit),ax=ax2)
+		ax2.set_title("zernike expansion (amplitude)")
+
+		ax5=sns.heatmap(fit.real,ax=ax5)
+		ax5.set_title("zernike expansion (real)")
+
+		ax8=sns.heatmap(fit.imag,ax=ax8)
+		ax8.set_title("zernike expansion (imag)")
 
 		#plot difference between original and fit
 		diff=self.probe-fit
 		ax3=sns.heatmap(np.abs(diff),ax=ax3)
+		ax3.set_title("original-zernike (amplitude)")
 
+		ax6=sns.heatmap(diff.real,ax=ax6)
+		ax6.set_title("original-zernike (real)")
+
+		ax9=sns.heatmap(diff.imag,ax=ax9)
+		ax9.set_title("original-zernike (imag)")
+
+		fig.suptitle("comparison of probe and expansion")
 		fig.tight_layout()
-		plt.show()
+		plt.savefig(f"probe_test_N_{N}.png")
 
 	#return coeffs of polynomials order N
 	def coeff_N(self, N):
@@ -89,4 +111,4 @@ if __name__=="__main__":
 	tolerance=1
 	probe=Probe(sample["probe_re"]+sample["probe_im"]*1j, N, tolerance)
 	probe.test()
-	print(probe.coeffs)
+	#print(probe.coeffs)
