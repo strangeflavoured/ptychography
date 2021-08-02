@@ -32,9 +32,9 @@ class Probe:
 		max_index=np.amax(np.abs(k-LEN))
 		self.max_index=max_index
 
-		#submatrix
+		#submatrix 
 		minIdx=-max_index+LEN
-		maxIdx=max_index+LEN
+		maxIdx=max_index+LEN+1
 		probe=self.ft_sample[minIdx:maxIdx, minIdx:maxIdx]
 		self.probe=probe
 		
@@ -53,7 +53,7 @@ class Probe:
 		#other returns from fit_cart_grid: residuals, rank, singular values (see numpy lstsq)
 
 	#plot probe vs fit
-	def test(self):		
+	def test(self, save=False):		
 		fig, ((ax1,ax2,ax3),(ax4,ax5,ax6),(ax7,ax8,ax9))=plt.subplots(3,3,sharey=True,figsize=(15,15))
 
 		#plot original probe
@@ -92,7 +92,11 @@ class Probe:
 
 		fig.suptitle("comparison of probe and expansion")
 		fig.tight_layout()
-		plt.savefig(f"probe_test_N_{N}.png")
+
+		if save:
+			plt.savefig(f"probe_test_N_{N}.png")
+		else:
+			plt.show()
 
 	#return coeffs of polynomials order N
 	def coeff_N(self, N):
@@ -108,7 +112,7 @@ if __name__=="__main__":
 	with open("probe_example.pkl","rb") as file:
 		sample=pkl.load(file)
 	N=10
-	tolerance=1
-	probe=Probe(sample["probe_re"]+sample["probe_im"]*1j, N, tolerance)
-	probe.test()
-	#print(probe.coeffs)
+	tolerance=4e-2
+	probe=Probe(sample["probe_aperture"], N, tolerance)
+	probe.test("save")
+	print(probe.coeffs)
