@@ -9,10 +9,13 @@ class Probe:
 	#initialise probe object by calculating its zernike coefficients
 	def __init__(self, sample, N, tolerance):
 		self.len=sample.shape[0]//2
-		LEN=sample.shape[0]//2
+
 		#transform sample to dual space
 		self.ft_sample=np.fft.fftshift(np.fft.fft2(sample))
 
+		#auto tolerance
+		if tolerance=="auto":
+			tolerance=np.amax(self.ft_sample)*.1
 		#set values close to zero (within tolerance) to 0
 		sample_nonzero=self.ft_sample.copy()
 		for ix, iy in np.ndindex(sample_nonzero.shape):
@@ -29,12 +32,12 @@ class Probe:
 			k.append(nonzero[1][i])
 		k=np.array(k)
 		#maximum non-zero index, centered
-		max_index=np.amax(np.abs(k-LEN))
+		max_index=np.amax(np.abs(k-self.len))
 		self.max_index=max_index
 
 		#submatrix 
-		minIdx=-max_index+LEN
-		maxIdx=max_index+LEN+1
+		minIdx=-max_index+self.len
+		maxIdx=max_index+self.len+1
 		probe=self.ft_sample[minIdx:maxIdx, minIdx:maxIdx]
 		self.probe=probe
 		
@@ -112,7 +115,7 @@ if __name__=="__main__":
 	with open("probe_example.pkl","rb") as file:
 		sample=pkl.load(file)
 	N=10
-	tolerance=4e-2
+	tolerance="auto"
 	probe=Probe(sample["probe_aperture"], N, tolerance)
 	probe.test("save")
 	print(probe.coeffs)
