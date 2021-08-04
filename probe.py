@@ -211,4 +211,4 @@ if __name__=="__main__":
 
 	#test accuracy for different numbers of polynomials
 	# for sample
-	#test_fit(probe_complex,50)
+	test_fit(probe_complex,50)
