@@ -9,17 +9,18 @@ from zernike import CZern # 0.0.31
 #callable attributes: sample (original), ft_sample (fourier transformed),
 #	probe (cutout of ft_sample), max_index (boardes of probe),
 #	nonzero (ft_sample low values set to zero)
-#	cart (zernike czern object), coeffs 8order list of zernike coeffs
+#	cart (zernike czern object), coeffs (ordered list of zernike coeffs)
 #methods: init (zernike expansion), plot (probe vs expansion),
-#	coeff_N (returns coeffs of order N)
+#	coeff_N (returns coeffs of order N), zernike (returns (n,m) polynomial
+# 	weighted with fitted coefficient), visual_coeff (visualises coeffs)
 class Probe:
 	#initialise probe object by calculating its zernike coefficients
 	def __init__(self, sample, N="auto", tolerance="auto"):
-		self.sample=sample
+		self.sample=np.fft.fftshift(sample)
 		LEN=sample.shape[0]
 
 		#transform sample to dual space
-		self.ift_sample=np.fft.fftshift(np.fft.ifft2(sample))
+		self.ift_sample=np.fft.ifftshift(np.fft.ifft2(self.sample))
 
 		#auto tolerance
 		if tolerance=="auto":
@@ -54,7 +55,7 @@ class Probe:
 		#expand sample using Zernike polynomials with radius k_max
 		#up to radial order N
 		if N=="auto":
-			N=4*N
+			N=int(probe.shape[0]//2)
 		self.N=N
 
 		#create CZern object for zernike polynomials
@@ -71,21 +72,16 @@ class Probe:
 		#other returns from fit_cart_grid: residuals, rank,
 		# singular values (see numpy lstsq)
 
-		#calculate coefficients explicitly
-		#coeffs=[]
-		#for n in range(N+1):
-		#	for m in range(n+1):
-		#		coeffs.append(np.sum(self.probe*self.Zernike(n,m)))
-		#self.coeffs=np.array(coeffs)
+		#save fitted zernike polynomial
+		self.fit=self.cart.eval_grid(self.coeffs, matrix=True)
 
 	#plot probe vs fit
 	def plot(self, save=False):
+		#replace nan in fit with 0
+		fit=np.nan_to_num(self.fit, nan=0)
+
 		fig, ((ax1,ax2,ax3),(ax4,ax5,ax6),(ax7,ax8,ax9))=plt.subplots(3,3,
 			sharey=True,figsize=(15,15))		
-
-		#fitted zernike polynomial
-		fit=self.cart.eval_grid(self.coeffs, matrix=True)
-		fit=np.nan_to_num(fit, nan=0)
 
 		#define norms for all subplots
 		ALL=np.abs([np.abs(self.probe),np.abs(fit),self.probe.real,
@@ -139,20 +135,66 @@ class Probe:
 
 	#needed for explicit calculation
 	#returns zernike polynomial n,m in shape of probe
-	def Zernike(self,n,m):
-		cart=CZern(n)
-		L,K=self.probe.shape
-		ddx=np.linspace(-1,1,K)
-		ddy=np.linspace(-1,1,L)
-		xv,yv=np.meshgrid(ddx,ddy)
-		cart.make_cart_grid(xv,yv)
+	# n>=0, 0<=m<=n
+	def zernike(self,n,m):
+		#make sure valid n and m are provided
+		if n>self.N:
+			n=self.N
+			print(f"n can't be larger than N, setting n={self.N}")
+		if m>n:
+			m=n
+			print(f"m can't be larger than n, setting m={n}")
 
-		coeffs=np.zeros(int((n+1)*(n+2)/2))
-		coeffs[int(n*(n+1)/2)+m]=1
-		poly=cart.eval_grid(coeffs, matrix=True)
+		#create coeff array with the corresponding coeff from fit
+		coeffs=np.zeros(len(self.coeffs),dtype="complex")
+		coeffs[int(n*(n+1)/2)+m]=self.coeffs[int(n*(n+1)/2)+m]
+
+		#make polynomial matrix
+		poly=self.cart.eval_grid(coeffs, matrix=True)
 		
 		return np.nan_to_num(poly, nan=0)
 
+	def visual_coeff(self):
+		plt.style.use("seaborn")
+		fig, (ax1,ax2,ax3)=plt.subplots(3,1, sharey=True,sharex=True)
+		ax1.scatter(range(len(self.coeffs)),self.coeffs.real)
+		ax2.scatter(range(len(self.coeffs)),self.coeffs.imag)
+		ax3.scatter(range(len(self.coeffs)),np.abs(self.coeffs))
+
+		ax1.set_ylabel("real part")		
+		ax2.set_ylabel("imaginary part")
+		ax3.set_xlabel("# of coefficient")
+		ax3.set_ylabel("absolute")
+
+		fig.tight_layout()
+		plt.savefig("coefficients.png")
+
+#test accuracy of fit for different orders
+def test_fit(sample,end,tolerance="auto"):
+	sdiff=[]
+	all_coeff=[]
+	#fit for various N and collect square difference
+	for i in range(end):
+		#fit up to order i
+		p=Probe(sample, N=i, tolerance=tolerance)
+
+		#square difference: absolute square of the difference between
+		# fit and sample (within zernike radius)
+		square_difference=np.absolute(p.fit-p.probe)**2
+		square_difference=np.nan_to_num(square_difference, nan=0)
+
+		#collect square difference and coefficients
+		sdiff.append(np.sum(square_difference))
+		all_coeff.append(p.coeffs)
+
+	#plot square deviation
+	plt.style.use("seaborn")
+	fig,ax=plt.subplots(1,1)
+	ax.scatter(range(end),sdiff)
+	ax.set_xlabel("number of polynomials")
+	ax.set_ylabel("square deviation")
+	plt.savefig("test_accuracy.png")
+	plt.close()
 
 if __name__=="__main__":
 
@@ -162,8 +204,11 @@ if __name__=="__main__":
 		sample=pkl.load(file)
 	probe_complex=sample["probe_re"]+1j*sample["probe_im"]
 	
-	N=50
-	probe=Probe(probe_complex,N)
-	probe.plot("save")	
+	#fit and plot expansion for sample
+	#probe=Probe(probe_complex)
+	#probe.visual_coeff()
+	#probe.plot("save")
 
-	#print(probe.coeffs)
+	#test accuracy for different numbers of polynomials
+	# for sample
+	#test_fit(probe_complex,50)
