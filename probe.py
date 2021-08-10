@@ -19,26 +19,21 @@ from zernike import CZern # 0.0.31
 #	shift/unshift (shift/unshift before expansion)
 class Probe:
 	#initialise probe object by calculating its zernike coefficients
-	def __init__(self, sample, N="auto", tolerance="auto", shift=2):
+	def __init__(self, sample, N="default", tolerance="auto", shift=2):
 		#shift sample by 2 pixels off centre
 		self.sample=sample
 		self.SHIFT=shift
-
-		#shift sample
-		sample=np.fft.fftshift(sample)
-		sample=self.shift(sample)
 		LEN=sample.shape[0]
 
 		#transform sample to dual space
-		ift_sample=np.fft.ifftshift(np.fft.ifft2(sample))
-		self.ift_sample=ift_sample
+		self.ift_sample=self.to_inverse(sample)
 
 		#auto tolerance
 		if tolerance=="auto":
-			tolerance=np.amax(ift_sample)*.2
+			tolerance=np.amax(self.ift_sample)*.2
 
 		#set values close to zero (within tolerance) to 0
-		sample_nonzero=ift_sample.copy()
+		sample_nonzero=self.ift_sample.copy()
 		for ix, iy in np.ndindex(sample_nonzero.shape):
 			if np.absolute(sample_nonzero[ix,iy])<tolerance:
 				sample_nonzero[ix,iy]=0
@@ -61,7 +56,7 @@ class Probe:
 		maxIdx=max_index+LEN//2+1+LEN%2
 		self.minIdx=minIdx
 		self.maxIdx=maxIdx
-		self.ift_sample_crop=ift_sample[minIdx:maxIdx, minIdx:maxIdx]
+		self.ift_sample_crop=self.ift_sample[minIdx:maxIdx, minIdx:maxIdx]
 		self.nonzero_crop=sample_nonzero[minIdx:maxIdx, minIdx:maxIdx]
 		
 		#expand sample using Zernike polynomials with radius k_max
@@ -89,22 +84,37 @@ class Probe:
 		#save fitted zernike polynomial
 		self.fit_crop=self.cart.eval_grid(self.coeffs, matrix=True)
 		self.fit=self.pad(self.fit_crop)
-		ft_fit=np.fft.fft2(self.fit)
-
-		#undo shift from beginning
-		ft_fit=self.unshift(ft_fit)
-		self.ft_fit=np.fft.fftshift(ft_fit)
+		self.ft_fit=self.to_real(self.fit)
 
 		#generate probe object for ADORYM
 		shape=(len(self.coeffs),self.sample.shape[0],self.sample.shape[1])
 		probe_mag=np.zeros(shape)
 		probe_phase=np.zeros(shape)
+		#for each mode, get padded expansion, fft2 and unshift
 		for mode, coeff in enumerate(self.coeffs):
-			probe_mag[mode]=self.pad(np.abs(self.zernike(mode)))
-			probe_phase[mode]=self.pad(np.angle(self.zernike(mode)))
+			#transform mode to real space
+			mode_pad=self.pad(self.zernike(mode))
+			mode_pad=self.to_real(mode_pad)
+			#get magnitude and phase
+			probe_mag[mode]=np.abs(mode_pad)
+			probe_phase[mode]=np.angle(mode_pad)
 		self.probe=[probe_mag, probe_phase]
 
 	##### METHODS #####
+	#transform input to inverse space
+	def to_inverse(self, sample):
+		sample=np.fft.fftshift(sample)
+		sample=self.shift(sample)
+		sample=np.fft.ifft2(sample)
+		return np.fft.ifftshift(sample)
+
+	#transform output to real space
+	def to_real(self, sample):
+		sample=np.fft.ifftshift(sample)
+		sample=self.unshift(sample)
+		sample=np.fft.fft2(sample)
+		return np.fft.fftshift(sample)
+
 	#shift 2d array before ifft2
 	def shift(self, array):
 		return np.roll(array, (self.SHIFT,self.SHIFT))
@@ -176,7 +186,8 @@ class Probe:
 		fig.tight_layout()
 
 		if save:
-			plt.savefig(f"probe_test_N_{self.N}.png")
+			plt.savefig(f"probe_test_N_{self.N}_shift_{self.SHIFT}.png")
+			plt.close()
 		else:
 			plt.show()
 
@@ -271,8 +282,12 @@ if __name__=="__main__":
 	#fit and plot expansion for sample
 	probe=Probe(probe_complex)
 	#probe.visual_coeff()
-	probe.plot("save")
-	
+	#probe.plot("save")
+	sns.heatmap(np.abs(probe.probe[0][0]))
+	plt.show()
+	sns.heatmap(np.abs(probe.probe[1][0]))
+	plt.show()
+
 	#test accuracy for different numbers of polynomials
 	# for sample
 	#test_fit(probe_complex,50)
