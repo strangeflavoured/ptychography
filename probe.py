@@ -143,53 +143,55 @@ class Probe:
 		sample=np.nan_to_num(sample, nan=0)
 		diff=np.nan_to_num(diff, nan=0)
 
-		fig, ((ax1,ax2,ax3),(ax4,ax5,ax6),(ax7,ax8,ax9))=plt.subplots(3,3,
-			sharey=True,figsize=(15,15))		
+		with plt.style.context('seaborn'):
+			fig, ((ax1,ax2,ax3),(ax4,ax5,ax6),(ax7,ax8,ax9))=plt.subplots(3,3,
+				sharey=True,figsize=(15,15))		
 
-		#define norms for all subplots
-		ALL=np.abs([np.abs(sample),np.abs(fit),sample.real,
-			fit.real,sample.imag,fit.imag])
-		norm=np.amax(ALL)
+			#define norms for all subplots
+			ALL=np.abs([np.abs(sample),np.abs(fit),sample.real,
+				fit.real,sample.imag,fit.imag])
+			norm=np.amax(ALL)
 
-		#plot original probe
-		ax1=sns.heatmap(np.abs(sample),ax=ax1,cmap=cm.seismic,vmin=-norm, vmax=norm)
-		ax1.set_title("original probe (amplitude)")
+			#plot original probe
+			ax1=sns.heatmap(np.abs(sample),ax=ax1,cmap=cm.seismic,vmin=-norm, vmax=norm)
+			ax1.set_title("original probe (amplitude)")
 
-		ax4=sns.heatmap(sample.real,ax=ax4,cmap=cm.seismic,vmin=-norm, vmax=norm)
-		ax4.set_title("original probe (real)")
+			ax4=sns.heatmap(sample.real,ax=ax4,cmap=cm.seismic,vmin=-norm, vmax=norm)
+			ax4.set_title("original probe (real)")
 
-		ax7=sns.heatmap(sample.imag,ax=ax7,cmap=cm.seismic,vmin=-norm, vmax=norm)
-		ax7.set_title("original probe (imag)")
+			ax7=sns.heatmap(sample.imag,ax=ax7,cmap=cm.seismic,vmin=-norm, vmax=norm)
+			ax7.set_title("original probe (imag)")
 
-		#plot fit
-		ax2=sns.heatmap(np.abs(fit),ax=ax2,cmap=cm.seismic,vmin=-norm, vmax=norm)
-		ax2.set_title("zernike expansion (amplitude)")
+			#plot fit
+			ax2=sns.heatmap(np.abs(fit),ax=ax2,cmap=cm.seismic,vmin=-norm, vmax=norm)
+			ax2.set_title("zernike expansion (amplitude)")
 
-		ax5=sns.heatmap(fit.real,ax=ax5,cmap=cm.seismic,vmin=-norm, vmax=norm)
-		ax5.set_title("zernike expansion (real)")
+			ax5=sns.heatmap(fit.real,ax=ax5,cmap=cm.seismic,vmin=-norm, vmax=norm)
+			ax5.set_title("zernike expansion (real)")
 
-		ax8=sns.heatmap(fit.imag,ax=ax8,cmap=cm.seismic,vmin=-norm, vmax=norm)
-		ax8.set_title("zernike expansion (imag)")
+			ax8=sns.heatmap(fit.imag,ax=ax8,cmap=cm.seismic,vmin=-norm, vmax=norm)
+			ax8.set_title("zernike expansion (imag)")
 
-		#plot difference between original and fit
-		diff=sample-fit
-		ax3=sns.heatmap(np.abs(diff),ax=ax3,cmap=cm.seismic,vmin=-norm, vmax=norm)
-		ax3.set_title("original-zernike (amplitude)")
+			#plot difference between original and fit
+			diff=sample-fit
+			ax3=sns.heatmap(np.abs(diff),ax=ax3,cmap=cm.seismic,vmin=-norm, vmax=norm)
+			ax3.set_title("original-zernike (amplitude)")
 
-		ax6=sns.heatmap(diff.real,ax=ax6,cmap=cm.seismic,vmin=-norm, vmax=norm)
-		ax6.set_title("original-zernike (real)")
+			ax6=sns.heatmap(diff.real,ax=ax6,cmap=cm.seismic,vmin=-norm, vmax=norm)
+			ax6.set_title("original-zernike (real)")
 
-		ax9=sns.heatmap(diff.imag,ax=ax9,cmap=cm.seismic,vmin=-norm, vmax=norm)
-		ax9.set_title("original-zernike (imag)")
+			ax9=sns.heatmap(diff.imag,ax=ax9,cmap=cm.seismic,vmin=-norm, vmax=norm)
+			ax9.set_title("original-zernike (imag)")
 
-		fig.suptitle("comparison of probe and expansion")
-		fig.tight_layout()
+			fig.suptitle("comparison of probe and expansion")
+			fig.tight_layout()
 
 		if save:
 			plt.savefig(f"probe_test_N_{self.N}_shift_{self.SHIFT}.png")
 			plt.close()
 		else:
 			plt.show()
+			plt.cose()
 
 	#return coeffs of polynomials order N
 	def coeff_N(self, N):
@@ -238,7 +240,6 @@ class Probe:
 
 			fig.tight_layout()
 			plt.savefig(f"coefficients_shift_{self.SHIFT}.png")
-		return ax3
 		plt.close()
 
 ####### OTHER #######
@@ -275,14 +276,15 @@ def test_fit(sample,end,tolerance="auto"):
 if __name__=="__main__":
 
 	import pickle as pkl
+	import pandas as pd
 
 	with open("probe_example.pkl","rb") as file:
 		sample=pkl.load(file)
 	probe_complex=sample["probe_re"]+1j*sample["probe_im"]
 	
 	#fit and plot expansion for sample
-	#probe=Probe(probe_complex)
-	#probe.visual_coeff()
+	probe=Probe(probe_complex)
+	probe.visual_coeff()
 	#probe.plot("save")
 	
 
@@ -291,16 +293,13 @@ if __name__=="__main__":
 	#test_fit(probe_complex,50)
 
 	#plot coefficients for different shifts
-	with plt.style.context("seaborn"):
-		fig, ax=plt.subplots(1,1)
-		for shift in range(0,7,2):
-			p=Probe(probe_complex, shift=shift)
-			ax.scatter(range(len(p.coeffs)),np.abs(p.coeffs), label=f"shift {shift}")
-			ax.plot(range(len(p.coeffs)),np.abs(p.coeffs))	
-		ax.set_xlabel("# of coefficient")
-		ax.set_ylabel("absolute")
-		ax.legend()
-
-		fig.tight_layout()
-		plt.savefig("coefficients_shift.png")
-	plt.close()
+	#data=pd.DataFrame({"coeff":[],"abs":[],"shift":[]})	
+	#for shift in range(0,7,2):
+	#	p=Probe(probe_complex, shift=shift)
+	#	d=np.abs(p.coeffs)
+	#	df=pd.DataFrame({"coeff":range(len(d)),"abs":d,"shift":np.repeat(shift, len(d))})
+	#	data=data.append(df,ignore_index=True)
+	#	
+	#sns.relplot(x="coeff",y="abs",kind="line", hue="shift", data=data)
+	#plt.savefig("coefficients_shift.png")
+	#plt.close()
