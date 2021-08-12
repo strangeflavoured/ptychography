@@ -237,7 +237,8 @@ class Probe:
 			ax3.set_ylabel("absolute")
 
 			fig.tight_layout()
-			plt.savefig("coefficients.png")
+			plt.savefig(f"coefficients_shift_{self.SHIFT}.png")
+		return ax3
 		plt.close()
 
 ####### OTHER #######
@@ -280,14 +281,26 @@ if __name__=="__main__":
 	probe_complex=sample["probe_re"]+1j*sample["probe_im"]
 	
 	#fit and plot expansion for sample
-	probe=Probe(probe_complex)
+	#probe=Probe(probe_complex)
 	#probe.visual_coeff()
 	#probe.plot("save")
-	sns.heatmap(np.abs(probe.probe[0][0]))
-	plt.show()
-	sns.heatmap(np.abs(probe.probe[1][0]))
-	plt.show()
+	
 
 	#test accuracy for different numbers of polynomials
 	# for sample
 	#test_fit(probe_complex,50)
+
+	#plot coefficients for different shifts
+	with plt.style.context("seaborn"):
+		fig, ax=plt.subplots(1,1)
+		for shift in range(0,7,2):
+			p=Probe(probe_complex, shift=shift)
+			ax.scatter(range(len(p.coeffs)),np.abs(p.coeffs), label=f"shift {shift}")
+			ax.plot(range(len(p.coeffs)),np.abs(p.coeffs))	
+		ax.set_xlabel("# of coefficient")
+		ax.set_ylabel("absolute")
+		ax.legend()
+
+		fig.tight_layout()
+		plt.savefig("coefficients_shift.png")
+	plt.close()
