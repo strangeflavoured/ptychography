@@ -1,10 +1,10 @@
 #create N probes in zernike polynomials from 2D input sample
-
 import numpy as np # 1.21.1
-import seaborn as sns # 41.4.0
-import matplotlib.pyplot as plt # 3.4.2
-from matplotlib import cm # 3.4.2
 from zernike import CZern # 0.0.31
+
+#imports from other files
+import visualisation as vis
+import tests as t
 
 #callable attributes: sample (input, should be square), ift_sample (after ifft2), 
 #	ift_sample_crop (cropped to centre for fit), N (max order)
@@ -13,9 +13,9 @@ from zernike import CZern # 0.0.31
 #	fit (zernike expansion padded), fit_crop (zernike expansion),
 #	ft_fit (padded expansion back-transformed), SHIFT (for shift/unshift method),
 #	probe (for adorym: contains probe_mag and probe_phase)
-#methods: init (zernike expansion), plot (probe vs expansion),
+#methods: init (zernike expansion),
 #	coeff_N (returns coeffs of order N), zernike (returns (n,m) polynomial
-# 	weighted with fitted coefficient), visual_coeff (visualises coeffs)
+# 	weighted with fitted coefficient),
 #	shift/unshift (shift/unshift before expansion)
 class Probe:
 	#initialise probe object by calculating its zernike coefficients
@@ -129,69 +129,7 @@ class Probe:
 		maxIdx=self.maxIdx
 		minIdx=self.minIdx
 		pad[minIdx:maxIdx, minIdx:maxIdx]=np.nan_to_num(cropped, nan=0)
-		return pad
-
-	#plot sample_crop vs fit
-	def plot(self, save=False):
-		
-		fit=self.fit_crop
-		sample=self.ift_sample_crop-0*fit
-		diff=sample-fit
-
-		#replace nan with 0
-		fit=np.nan_to_num(fit, nan=0)
-		sample=np.nan_to_num(sample, nan=0)
-		diff=np.nan_to_num(diff, nan=0)
-
-		with plt.style.context('seaborn'):
-			fig, ((ax1,ax2,ax3),(ax4,ax5,ax6),(ax7,ax8,ax9))=plt.subplots(3,3,
-				sharey=True,figsize=(15,15))		
-
-			#define norms for all subplots
-			ALL=np.abs([np.abs(sample),np.abs(fit),sample.real,
-				fit.real,sample.imag,fit.imag])
-			norm=np.amax(ALL)
-
-			#plot original probe
-			ax1=sns.heatmap(np.abs(sample),ax=ax1,cmap=cm.seismic,vmin=-norm, vmax=norm)
-			ax1.set_title("original probe (amplitude)")
-
-			ax4=sns.heatmap(sample.real,ax=ax4,cmap=cm.seismic,vmin=-norm, vmax=norm)
-			ax4.set_title("original probe (real)")
-
-			ax7=sns.heatmap(sample.imag,ax=ax7,cmap=cm.seismic,vmin=-norm, vmax=norm)
-			ax7.set_title("original probe (imag)")
-
-			#plot fit
-			ax2=sns.heatmap(np.abs(fit),ax=ax2,cmap=cm.seismic,vmin=-norm, vmax=norm)
-			ax2.set_title("zernike expansion (amplitude)")
-
-			ax5=sns.heatmap(fit.real,ax=ax5,cmap=cm.seismic,vmin=-norm, vmax=norm)
-			ax5.set_title("zernike expansion (real)")
-
-			ax8=sns.heatmap(fit.imag,ax=ax8,cmap=cm.seismic,vmin=-norm, vmax=norm)
-			ax8.set_title("zernike expansion (imag)")
-
-			#plot difference between original and fit
-			diff=sample-fit
-			ax3=sns.heatmap(np.abs(diff),ax=ax3,cmap=cm.seismic,vmin=-norm, vmax=norm)
-			ax3.set_title("original-zernike (amplitude)")
-
-			ax6=sns.heatmap(diff.real,ax=ax6,cmap=cm.seismic,vmin=-norm, vmax=norm)
-			ax6.set_title("original-zernike (real)")
-
-			ax9=sns.heatmap(diff.imag,ax=ax9,cmap=cm.seismic,vmin=-norm, vmax=norm)
-			ax9.set_title("original-zernike (imag)")
-
-			fig.suptitle("comparison of probe and expansion")
-			fig.tight_layout()
-
-		if save:
-			plt.savefig(f"probe_test_N_{self.N}_shift_{self.SHIFT}.png")
-			plt.close()
-		else:
-			plt.show()
-			plt.cose()
+		return pad	
 
 	#return coeffs of polynomials order N
 	def coeff_N(self, N):
@@ -199,7 +137,6 @@ class Probe:
 		end=int((N+1)*(N+2)/2)
 		return self.coeffs[begin:end]
 
-	#needed for explicit calculation
 	#returns zernike polynomial n,m in shape of sample_crop
 	#if only n is provided, total coefficient number is assumed
 	# n>=0, 0<=m<=n
@@ -226,50 +163,6 @@ class Probe:
 		
 		return np.nan_to_num(poly, nan=0)
 
-	def visual_coeff(self):
-		with plt.style.context('seaborn'):
-			fig, (ax1,ax2,ax3)=plt.subplots(3,1, sharey=True,sharex=True)
-			ax1.scatter(range(len(self.coeffs)),self.coeffs.real)
-			ax2.scatter(range(len(self.coeffs)),self.coeffs.imag)
-			ax3.scatter(range(len(self.coeffs)),np.abs(self.coeffs))
-
-			ax1.set_ylabel("real part")		
-			ax2.set_ylabel("imaginary part")
-			ax3.set_xlabel("# of coefficient")
-			ax3.set_ylabel("absolute")
-
-			fig.tight_layout()
-			plt.savefig(f"coefficients_shift_{self.SHIFT}.png")
-		plt.close()
-
-####### OTHER #######
-
-#test accuracy of fit for different orders
-def test_fit(sample,end,tolerance="auto"):
-	sdiff=[]
-	all_coeff=[]
-	#fit for various N and collect square difference
-	for i in range(end):
-		#fit up to order i
-		p=Probe(sample, N=i, tolerance=tolerance)
-
-		#square difference: absolute square of the difference between
-		# fit and sample (within zernike radius)
-		square_difference=np.absolute(p.fit-p.probe)**2
-		square_difference=np.nan_to_num(square_difference, nan=0)
-
-		#collect square difference and coefficients
-		sdiff.append(np.sum(square_difference))
-		all_coeff.append(p.coeffs)
-
-	#plot square deviation
-	with plt.style.context('seaborn'):
-		fig,ax=plt.subplots(1,1)
-		ax.scatter(range(end),sdiff)
-		ax.set_xlabel("number of polynomials")
-		ax.set_ylabel("square deviation")
-		plt.savefig("test_accuracy.png")
-	plt.close()
 
 
 ####### RUN #######
@@ -283,23 +176,12 @@ if __name__=="__main__":
 	probe_complex=sample["probe_re"]+1j*sample["probe_im"]
 	
 	#fit and plot expansion for sample
-	probe=Probe(probe_complex)
-	probe.visual_coeff()
-	#probe.plot("save")
-	
+	#probe=Probe(probe_complex)
+	#vis.visual_coeff(probe,save=True)
+	#vis.plot_crop(probe,save=True)	
+	#vis.plot_full(probe,save=True)
 
 	#test accuracy for different numbers of polynomials
-	# for sample
-	#test_fit(probe_complex,50)
-
-	#plot coefficients for different shifts
-	#data=pd.DataFrame({"coeff":[],"abs":[],"shift":[]})	
-	#for shift in range(0,7,2):
-	#	p=Probe(probe_complex, shift=shift)
-	#	d=np.abs(p.coeffs)
-	#	df=pd.DataFrame({"coeff":range(len(d)),"abs":d,"shift":np.repeat(shift, len(d))})
-	#	data=data.append(df,ignore_index=True)
-	#	
-	#sns.relplot(x="coeff",y="abs",kind="line", hue="shift", data=data)
-	#plt.savefig("coefficients_shift.png")
-	#plt.close()
+	# and different shift
+	t.test_fit(probe_complex,50, save=True)#slow
+	#t.plot_shifts(probe_complex,save=True)
