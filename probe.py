@@ -183,5 +183,5 @@ if __name__=="__main__":
 
 	#test accuracy for different numbers of polynomials
 	# and different shift
-	t.test_fit(probe_complex,50, save=True)#slow
+	t.test_fit(probe_complex,10, shiftrange=0,save=True)#slow
 	#t.plot_shifts(probe_complex,save=True)

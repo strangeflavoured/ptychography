@@ -15,26 +15,45 @@ def test_fit(sample,end,tolerance="auto",shiftrange=4,shiftstep=2,save=False):
 		sdiff_crop=[]
 		sdiff_full=[]
 		#fit for various N and collect square difference
-		for i in range(end):
+		for i in range(end+1):
 			#fit up to order i
 			p=Probe(sample, N=i, tolerance=tolerance)
 			#square difference: absolute square of the difference between
-			# fit and sample (within zernike radius)
+
+			# full fit and sample (within zernike radius)
 			square_difference=np.absolute(p.ft_fit-p.sample)**2
 			square_difference=np.nan_to_num(square_difference, nan=0)
 
 			#collect square difference and coefficients
-			sdiff.append(np.sum(square_difference))
-		deviations[str(shift)]=sdiff
+			sdiff_full.append(np.sum(square_difference))
+
+			#crop fit and sample
+			square_difference=np.absolute(p.fit_crop-p.ift_sample_crop)**2
+			square_difference=np.nan_to_num(square_difference, nan=0)
+
+			#collect square difference and coefficients
+			sdiff_crop.append(np.sum(square_difference))
+			print(i, np.sum(square_difference))
+		
+		#collect square dev for shift	
+		deviations_crop[str(shift)]=sdiff_crop
+		deviations_full[str(shift)]=sdiff_full
 
 	#plot square deviation
 	with plt.style.context('seaborn'):
-		fig,ax=plt.subplots(1,1)
-		for key in deviations.keys():
-			ax.scatter(range(end),deviations[key], label=f"shift {key}")
-		ax.set_xlabel("number of polynomials")
-		ax.set_ylabel("square deviation")
-		ax.legend()
+		fig,(ax1,ax2)=plt.subplots(2,1)
+		for key in deviations_crop.keys():
+			ax1.scatter(range(end+1),deviations_crop[key], label=f"shift {key}")
+			ax2.scatter(range(end+1),deviations_full[key])
+
+		ax1.set_title("fit only (dual space)")
+		ax1.set_ylabel("square deviation")
+
+		ax2.set_title("whole probe (real space)")
+		ax2.set_xlabel("number of polynomials")		
+		ax2.set_ylabel("square deviation")
+		#ax.set_yscale("log")
+		ax1.legend()
 		if save:
 			plt.savefig("test_accuracy.png")			
 		else:
