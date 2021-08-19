@@ -5,6 +5,7 @@ from zernike import CZern # 0.0.31
 #imports from other files
 import visualisation as vis
 import tests as t
+import config
 
 #callable attributes: sample (input, should be square), ift_sample (after ifft2), 
 #	ift_sample_crop (cropped to centre for fit), N (max order)
@@ -19,7 +20,8 @@ import tests as t
 #	shift/unshift (shift/unshift before expansion)
 class Probe:
 	#initialise probe object by calculating its zernike coefficients
-	def __init__(self, sample, N="default", tolerance="auto", shift=2):
+	def __init__(self, sample, N="default", tolerance="auto", shift=2,
+		statistics=True, description=""):
 		#shift sample by 2 pixels off centre
 		self.sample=sample
 		self.SHIFT=shift
@@ -63,7 +65,7 @@ class Probe:
 		#up to radial order N
 		if N=="auto":
 			N=int(self.ift_sample_crop.shape[0]//2)
-		elif N=="default" or not N:
+		elif N=="default":
 			N=8
 		self.N=N
 
@@ -100,6 +102,10 @@ class Probe:
 			probe_phase[mode]=np.angle(mode_pad)
 		self.probe=[probe_mag, probe_phase]
 
+		#add to statistics
+		if statistics:
+			t.statistics(self, description)
+
 	##### METHODS #####
 	#transform input to inverse space
 	def to_inverse(self, sample):
@@ -132,31 +138,42 @@ class Probe:
 		return pad	
 
 	#return coeffs of polynomials order N
-	def coeff_N(self, N):
+	def coeff_N(self, N, upto=True):
 		begin=int(N*(N+1)/2)
 		end=int((N+1)*(N+2)/2)
-		return self.coeffs[begin:end]
+		coeffs=np.zeros(len(self.coeffs), dtype="complex")
+		if upto:
+			coeffs[:end]=self.coeffs[:end]
+		else:
+			coeffs[begin:end]=self.coeffs[begin:end]
+		return coeffs
 
 	#returns zernike polynomial n,m in shape of sample_crop
 	#if only n is provided, total coefficient number is assumed
 	# n>=0, 0<=m<=n
+	#alternatively a list of coeffs can be provided
 	def zernike(self,n,m=None):
-		#make sure valid n and m are provided		
-		if m is None:
-			#if only n is provided
-			idx=int(n)
+		#if list is provided
+		if isinstance(n, list) or isinstance(n, np.ndarray):
+				coeffs=n
+				
+		#else make sure valid n and m are provided
 		else:
-			if n>self.N:
-				n=self.N
-				print(f"n can't be larger than N, setting n={self.N}")
-			if m>n:
-				m=n
-				print(f"m can't be larger than n, setting m={n}")
-			idx=int(n*(n+1)/2)+m
+			if m is None:
+				#if only n is provided
+				idx=int(n)
+			else:
+				if n>self.N:
+					n=self.N
+					print(f"n can't be larger than N, setting n={self.N}")
+				if m>n:
+					m=n
+					print(f"m can't be larger than n, setting m={n}")
+				idx=int(n*(n+1)/2)+m
 			
-		#create coeff array with the corresponding coeff from fit
-		coeffs=np.zeros(len(self.coeffs),dtype="complex")
-		coeffs[idx]=self.coeffs[idx]
+			#create coeff array with the corresponding coeff from fit
+			coeffs=np.zeros(len(self.coeffs),dtype="complex")
+			coeffs[idx]=self.coeffs[idx]
 
 		#make polynomial matrix
 		poly=self.cart.eval_grid(coeffs, matrix=True)
@@ -183,5 +200,10 @@ if __name__=="__main__":
 
 	#test accuracy for different numbers of polynomials
 	# and different shift
-	t.test_fit(probe_complex,10, shiftrange=0,save=True)#slow
+	#t.test_fit(probe_complex,50,save=True)#slow
 	#t.plot_shifts(probe_complex,save=True)
+
+	#test statistics feature for different shifts
+	#for i in range(3):		
+	#	probe=Probe(probe_complex, shift=i, description=f"s={i}")
+	#vis.plot_stats()

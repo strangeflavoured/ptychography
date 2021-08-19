@@ -6,8 +6,10 @@ import pandas as pd # 1.3.1
 
 #imoprt from main
 from probe import Probe
+import config
 
 #plot accuracy of fit for different orders and shifts
+#slow for high end, shiftrange
 def test_fit(sample,end,tolerance="auto",shiftrange=4,shiftstep=2,save=False):
 	deviations_crop={}
 	deviations_full={}
@@ -33,7 +35,6 @@ def test_fit(sample,end,tolerance="auto",shiftrange=4,shiftstep=2,save=False):
 
 			#collect square difference and coefficients
 			sdiff_crop.append(np.sum(square_difference))
-			print(i, np.sum(square_difference))
 		
 		#collect square dev for shift	
 		deviations_crop[str(shift)]=sdiff_crop
@@ -50,10 +51,11 @@ def test_fit(sample,end,tolerance="auto",shiftrange=4,shiftstep=2,save=False):
 		ax1.set_ylabel("square deviation")
 
 		ax2.set_title("whole probe (real space)")
-		ax2.set_xlabel("number of polynomials")		
+		ax2.set_xlabel("order of polynomials")		
 		ax2.set_ylabel("square deviation")
-		#ax.set_yscale("log")
+		
 		ax1.legend()
+		fig.tight_layout()
 		if save:
 			plt.savefig("test_accuracy.png")			
 		else:
@@ -75,3 +77,20 @@ def plot_shifts(sample,shiftrange=6,shiftstep=2,save=False):
 	else:
 		plt.show()
 	plt.close()
+
+#collect statistics while running
+#creates global variable probe_statistics
+def statistics(probe_obj, description):
+	#create dictionary with square deviation of probe obj
+	#for each order of polynomial and meta data
+	stats={"N":probe_obj.N,"shift":probe_obj.SHIFT,
+		"size":probe_obj.ift_sample_crop.shape[0], "description":description}
+	for order in range(probe_obj.N+1):
+		coeffs=probe_obj.coeff_N(order)
+		#calculate square diff in each order (crop only)
+		square_difference=probe_obj.zernike(coeffs)-probe_obj.ift_sample_crop
+		square_difference=np.absolute(square_difference)**2
+		square_difference=np.nan_to_num(square_difference, nan=0)
+		stats[order]=np.sum(square_difference)
+	#add to global variable statistics
+	config.statistics=config.statistics.append(stats, ignore_index=True)

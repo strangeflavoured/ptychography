@@ -3,6 +3,9 @@ import numpy as np # 1.21.1
 import seaborn as sns # 41.4.0
 import matplotlib.pyplot as plt # 3.4.2
 from matplotlib import cm # 3.4.2
+import pandas as pd
+
+import config
 
 #plot sample_crop vs fit
 def plot_crop(probe, save=False):
@@ -123,4 +126,18 @@ def visual_coeff(probe, save=False):
 			plt.savefig(f"coefficients_shift_{probe.SHIFT}.png")
 		else:
 			plt.show()
+	plt.close()
+
+#plot accuracy of fits for each different setting (description)
+def plot_stats():
+	stats=config.statistics
+	idx=["N","description","shift","size"]
+	vals=stats.drop(idx,axis=1).columns
+	stats=stats.melt(id_vars=idx, value_vars=vals)
+	#normalise square deviation by window size for comparability
+	stats["value"]=stats["value"]/stats["size"]**2
+	stats=stats.rename(columns={"variable":"order","value":"square deviation"})
+	
+	sns.catplot(data=stats, x="order", y="square deviation", hue="description", kind="swarm")
+	plt.savefig("stats.png")
 	plt.close()
