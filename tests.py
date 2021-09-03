@@ -79,7 +79,7 @@ def plot_shifts(sample,shiftrange=6,shiftstep=2,save=False):
 	plt.close()
 
 #collect statistics while running
-#creates global variable probe_statistics
+#modifies variable config.statistics
 def statistics(probe_obj, description):
 	#create dictionary with square deviation of probe obj
 	#for each order of polynomial and meta data

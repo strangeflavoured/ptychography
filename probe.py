@@ -79,7 +79,7 @@ class Probe:
 		self.cart=cart
 
 		#calculate coeffs using lstsq method
-		self.coeffs=self.cart.fit_cart_grid(self.ift_sample_crop)[0]
+		self.coeffs=self.cart.fit_cart_grid(self.nonzero_crop)[0]
 		#other returns from fit_cart_grid: residuals, rank,
 		# singular values (see numpy lstsq)
 
@@ -109,25 +109,25 @@ class Probe:
 	##### METHODS #####
 	#transform input to inverse space
 	def to_inverse(self, sample):
-		sample=np.fft.fftshift(sample)
+		sample=np.fft.ifftshift(sample)
 		sample=self.shift(sample)
-		sample=np.fft.ifft2(sample)
-		return np.fft.ifftshift(sample)
+		sample=np.fft.fft2(sample)
+		return np.fft.fftshift(sample)
 
 	#transform output to real space
 	def to_real(self, sample):
 		sample=np.fft.ifftshift(sample)
 		sample=self.unshift(sample)
-		sample=np.fft.fft2(sample)
+		sample=np.fft.ifft2(sample)
 		return np.fft.fftshift(sample)
 
 	#shift 2d array before ifft2
 	def shift(self, array):
-		return np.roll(array, (self.SHIFT,self.SHIFT))
+		return np.roll(array, self.SHIFT, axis=(0,1))
 
 	#shift array back before fft2
 	def unshift(self, array):
-		return np.roll(array, (-self.SHIFT,-self.SHIFT))
+		return np.roll(array, -self.SHIFT, axis=(0,1))
 
 	#pad cropped arrays with 0 to input shape
 	def pad(self, cropped):
@@ -186,14 +186,17 @@ class Probe:
 if __name__=="__main__":
 
 	import pickle as pkl
-	import pandas as pd
+	#import pandas as pd
+	import seaborn as sns
+	import matplotlib.pyplot as plt
 
 	with open("probe_example.pkl","rb") as file:
 		sample=pkl.load(file)
 	probe_complex=sample["probe_re"]+1j*sample["probe_im"]
 	
+	
 	#fit and plot expansion for sample
-	#probe=Probe(probe_complex)
+	probe=Probe(probe_complex)
 	#vis.visual_coeff(probe,save=True)
 	#vis.plot_crop(probe,save=True)	
 	#vis.plot_full(probe,save=True)
